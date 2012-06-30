@@ -3,7 +3,7 @@
    "author" : [
       "Iain Campbell <cpanic@cpan.org>"
    ],
-   "dynamic_config" : 0,
+   "dynamic_config" : 1,
    "generated_by" : "ExtUtils::MakeMaker version 6.62, CPAN::Meta::Converter version 2.112621",
    "license" : [
       "unknown"
