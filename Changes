@@ -1,6 +1,10 @@
 Revision history for Perl extension Params::Callbacks.
 
-0.01  Sat Jun 30 23:50:15 2012
+1.01  Sat Jun 30 23:50:15 2012
 	- original version; created by h2xs 1.23 with options
 		-X -n Params::Callbacks
 
+1.001_000  Wed Jul  4 20:51:40 2012
+	- created by h2xs 1.23 with options
+		-X -b 5.8.4 -v1.001_000 -n Params::Callbacks
+	- deprecated "extract_callbacks" and "filter" and cleaned up some of the code

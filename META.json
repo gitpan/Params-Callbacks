@@ -1,5 +1,5 @@
 {
-   "abstract" : "callback helper and topicalizer tools",
+   "abstract" : "Enable functions to accept blocking callbacks",
    "author" : [
       "Iain Campbell <cpanic@cpan.org>"
    ],
@@ -34,6 +34,6 @@
          "requires" : {}
       }
    },
-   "release_status" : "stable",
-   "version" : "1.00"
+   "release_status" : "testing",
+   "version" : "1.001_000"
 }

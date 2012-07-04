@@ -1,5 +1,5 @@
-Params-Callbacks version 1.00
-=============================
+Params-Callbacks version 1.001_000
+==================================
 
 Provides a very simple mechanism for converting an ordinary function into 
 a function that will allow its result to be filtered through, and possibly

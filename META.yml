@@ -1,5 +1,5 @@
 ---
-abstract: 'callback helper and topicalizer tools'
+abstract: 'Enable functions to accept blocking callbacks'
 author:
   - 'Iain Campbell <cpanic@cpan.org>'
 build_requires:
@@ -18,4 +18,4 @@ no_index:
     - t
     - inc
 requires: {}
-version: 1.00
+version: 1.001_000

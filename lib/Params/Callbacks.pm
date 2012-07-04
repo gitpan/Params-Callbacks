@@ -9,20 +9,25 @@ package Params::Callbacks;
 
 BEGIN {
     $Params::Callbacks::AUTHORITY = 'cpan:CPANIC';
-    $Params::Callbacks::VERSION   = '1.00';
+    $Params::Callbacks::VERSION   = '1.001_000';
+    $Params::Callbacks::VERSION   = eval $Params::Callbacks::VERSION;
 }
 
+use 5.008_004;
 use strict;
 use warnings;
 
 require Exporter;
 
-our @ISA         = qw/Exporter/;
-our @EXPORT_OK   = qw/callbacks with list item/;
+our @ISA = qw/Exporter/;
+
+our @EXPORT_OK = qw/callbacks list item extract_callbacks/;
+
 our %EXPORT_TAGS = (
-    with => [ qw/with item list/ ],
-    all  => [ @EXPORT_OK ]
+    all => [ @EXPORT_OK ]
 );
+
+# Constructor to create callback queue object.
 
 sub extract {
     my @callbacks;
@@ -30,34 +35,47 @@ sub extract {
     bless( \@callbacks, shift ), @_;
 }
 
-sub filter {
-    local $@;
-    my @callbacks = @{ +shift };
-    
-    @_ = $_ unless @_;
-    map { @_ = $_->(@_) } @callbacks;
-    return @_;
+# Yield result and control to callback queue.
+
+sub yield {
+    my $callbacks = shift;
+    map { @_ = $_->(@_) } @{$callbacks};
 }
+
+# Deprecated "filter" shortly after initial release.
+# Use "yield" instead.
+
+*filter = \&yield;
+
+# Non-OO function to create creat callback queue object.
+# Exported on request.
 
 sub callbacks { 
     __PACKAGE__->extract(@_); 
 }
 
-sub with (&;@) {
-    my $topic = shift;
-    my($callbacks, @args) = __PACKAGE__->extract(@_);
-    $callbacks->filter( $topic->(@args) );
-}
+# Deprecated "extract_callbacks" shortly after initial release.
+# Use "callbacks" instead.
+
+*extract_callbacks = \&callbacks;
+
+# Syntactic sugar: like "sub { ... }" without the need for a comma to separate
+# more than one. 
+#
+# Exported on request.
 
 sub list (&;@) {
     return @_;
 }
 
+# Syntactic sugar: like "list { ... }" but process result set one item at a
+# time.
+#
+# Exported on request.
+
 sub item (&;@) {
     my $code = shift;
-    sub {
-        map { $code->( local $_ = $_ ) } @_;
-    }, @_;
+    sub { map { $code->( local $_ = $_ ) } @_ }, @_;
 }
 
 1;
@@ -70,143 +88,89 @@ __END__
 
 =head1 NAME
 
-Params::Callbacks - callback helper and topicalizer tools
+Params::Callbacks - Enable functions to accept blocking callbacks
 
 =head1 SYNOPSIS
 
-    # Using the object oriented calling style...
-
-    use Params::Callbacks;
-
-    sub counted {
-        my ($callbacks, @args) = Params::Callbacks->extract(@_);
-        $callbacks->filter(@args);
-    }
-
-    my $size = counted 1, 2, 3, sub {
-        print "> $_\n" for @_;
-        return @_;
-    };
-
-    print "$size items\n";
-
-    # > 1
-    # > 2
-    # > 3
-    # 3 items
-    
-    # Or, just mix-in the "callbacks" function...
-
-    use Params::Callbacks qw/callbacks/;
-
-    sub counted {
-        my ($callbacks, @args) = &callbacks;
-        $callbacks->filter(@args);
-    }
-
-    my $size = counted 'A', 'B', 'C', sub {
-        print "> $_\n" for @_;
-        return @_;
-    };
-
-    print "$size items\n";
-
-    # > A
-    # > B
-    # > C
-    # 3 items
-    
-    # Or, use my pre-cooked topicalizer. It's like "map" but with 
-    # the topic up-front and in your face instead of further down 
-    # in the source, somewhere...
-
-    use Params::Callbacks qw/:with/;
-
-    with { 'A', 'B', 'C' } 
-        item { print "> $_\n" }             # Process each item
-        list { print @_ . " items\n" };     # Process entire list
-
-    # > A
-    # > B
-    # > C
-    # 3 items
-
 =head1 DESCRIPTION
 
-Provides a very simple mechanism for converting an ordinary function into 
-a function that will allow its result to be filtered through, and possibly
-altered by, an optional callback queue before it is passed the caller. 
+This package provides the developer with an easy and consistent method for 
+converting a function that returns a result, into a function that will allow
+its result to pass through one or more blocking callbacks, before it is 
+delivered to the caller. 
+
+It is up to the function's author to decide how and where in the function's
+flow those callbacks should be invoked. This is could be important during the
+creation of sets of results: one could apply the callbacks to a finished set, 
+or apply them to each element of the result set as it is added. 
 
 =head2 TRAINING FUNCTIONS TO HANDLE CALLBACKS
 
 =over 5
 
-=item B<( $callbacks, @params ) = Params::Callbacks-E<gt>extract( @_ );>
+=item B<( $callbacks, LIST ) = Params::Callbacks-E<gt>extract( LIST );>
 
-=item B<( $callbacks, @params ) = callbacks( @_ );>
+=item B<( $callbacks, LIST ) = callbacks LIST;>
+
+Accepts a list of values and strips off any B<trailing> code-references, 
+which are used to create a callback queue. A new list is returned consisting
+of a reference to the callback queue, followed by the originally listed 
+items that were not callbacks. Note that only trailing code-references are
+considered callbacks; once an inelligible items is encountered the collection
+stops.
+
+A callback queue may be empty and that's fine.
 
 =item B<( $callbacks, @params ) = &callbacks;>
 
-Takes a list (here it is C<@_>) and creates a callback queue (C<$callbacks>)
-from any B<trailing> code references and/or anonymous subs in that list. A 
-new list is returned containing a reference to the callback queue followed 
-by all those items in the original list that were not callbacks.
+A special form of call to C<callbacks>, using the current C<@_>.
 
-For purposes of illustration, I'm using Perl's built-in C<@_>, which is 
-probably typical given the nature of the task at hand. Nevertheless, any 
-list may be processed; though, prefixing the C<callbacks> function call 
-with an ampersand "&" is probably only relevant when working with C<@_>.
+=item B<RESULT = $callbacks-E<gt>yield( RESULT );>
 
-A callback queue may be empty, i.e. contain no callbacks. That's ok.
+Yields a result up to the callback queue, returning whatever comes out at
+the other end.
 
-=item B<OUTPUT = $callbacks-E<gt>filter( [INPUT] );>
+A result will pass through an empty callback queue unmodified.
 
-Passes a "would be" result (C<INPUT>) into the head of the callback queue. 
-The final stage of the queue yields the final result (C<OUTPUT>). Both, 
-C<INPUT> and C<OUTPUT> may be lists of zero, one or more scalars. Passing 
-no arguments to the C<filter> method causes C<$_> to be used. 
+=item B<list BLOCK [CALLBACK-LIST]>
 
-An empty callback queue yields the same result that was passed into it.
+=item B<sub STATEMENT-BLOCK[, CALLBACK-LIST]>
 
-=back
+On their own, callbacks receive their input result as a list; C<@_>, to
+be precise, since they're really only functions. 
 
-=head2 USING THE C<with> TOPICALIZER AND THE C<item> / C<list> STAGES
+When invoking a function that accepts callbacks, you might string a sequence
+of code-references, or anonymous C<sub> blocks together, being careful to
+separate each witha comma (,), e.g:
 
-=over 5
+    function ARGUMENTS, sub {
+        ...
+    }, sub {
+        ...
+    }, sub {
+        ...
+    };
 
-=item C<[RESULT = ]with BLOCK [STAGE [STAGE [STAGE [...]]]]> 
+Alternatively, use the C<list> function to do exactly the same but dispense 
+line-noise altogether:
 
-The C<with> function takes a BLOCK as its first argument, which may be
-followed by zero or more stages. Each stage may be a per-item-oriented
-C<item BLOCK> stage, or the list-oriented C<list BLOCK> and C<sub BLOCK>
-stages.
+    function ARGUMENTS, list {
+        ...
+    } list {
+        ...
+    } list {
+        ...
+    }
 
-Per-item-oriented stages process the result of the previous stage on 
-item at a time, i.e. if the previous stage issued a list, each item 
-in that list is processed separately. List-oriented stages process 
-the entire result from the previous stage; if the previous stage is
-an item-oriented stage then all the results are gathered together 
-before being passed on. So, C<item> and C<list> stages can be mixed
-freely.
+Yes, much easier on the eye!
+    
+=item B<item STATEMENT-BLOCK [CALLBACK-LIST]>
 
-The C<sub BLOCK> stage works just like the C<list BLOCK> stage, but
-requires a comma to separate it from anything that follows. If that's
-too much ugly, just use C<list BLOCK>.
+Use in place of C<list> when you want the input result one item at a time, 
+i.e. even though the result is a list, the callback is called once for each
+item in the list and all items are gathered before being passed on.
 
-Essentially, you end up with something looking like this:
-
-    with { ... }
-        item { ... }
-        list { ... }
-        # etc
-    ;
-
-It's a beautiful structure, allowing the developer to constrain 
-logic and temporary state within an inner block and away from
-the main flow, and process the results in a similar fashion.
-
-Sure, we have C<map> and C<grep> but they're back-to-front and 
-sometimes that just doesn't look right. 
+Both the C<item> and C<list> callbacks may be mixed freely.
 
 =back
 
@@ -218,19 +182,19 @@ None.
 
 =head2 @EXPORT_OK
 
-callbacks, with, list, item.
+=over 5 
+
+=item callbacks, list, item, (DEPRECATED: extract_callbacks)
+
+=back 
 
 =head2 %EXPORT_TAGS
 
-=over 4
+=over 5
 
 =item C<:all>
 
 Everything in @EXPORT_OK.
-
-=item C<:with>
-
-with, list, item.
 
 =back 
 
@@ -244,6 +208,8 @@ I can do to help.
 Iain Campbell <cpanic@cpan.org>
 
 =head1 COPYRIGHT AND LICENCE
+
+Params::Callbacks, Version 1.01
 
 Copyright (C) 2012 by Iain Campbell
 
