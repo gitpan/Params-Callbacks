@@ -9,7 +9,7 @@ package Params::Callbacks;
 
 BEGIN {
     $Params::Callbacks::AUTHORITY = 'cpan:CPANIC';
-    $Params::Callbacks::VERSION   = '1.11';
+    $Params::Callbacks::VERSION   = '1.12';
     $Params::Callbacks::VERSION   = eval $Params::Callbacks::VERSION;
 }
 
@@ -40,6 +40,7 @@ sub extract {
 sub yield {
     my $callbacks = shift;
     map { @_ = $_->(@_) } @{$callbacks};
+    return @_;
 }
 
 # Deprecated "filter" shortly after initial release.

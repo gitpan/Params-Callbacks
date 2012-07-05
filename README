@@ -1,9 +1,9 @@
-Params-Callbacks version 1.11
+Params-Callbacks version 1.12
 =============================
 
-Provides a very simple mechanism for converting an ordinary function into 
+Provides a very simple mechanism for converting an ordinary function into
 a function that will allow its result to be filtered through, and possibly
-altered by, an optional callback queue before it is passed the caller. 
+altered by, an optional callback queue before it is passed the caller.
 
 INSTALLATION
 
