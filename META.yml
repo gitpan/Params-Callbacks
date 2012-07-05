@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               Params-Callbacks
-version:            1.12
+version:            1.13
 abstract:           Enable functions to accept blocking callbacks
 author:
     - Iain Campbell <cpanic@cpan.org>
