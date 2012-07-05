@@ -9,7 +9,7 @@ package Params::Callbacks;
 
 BEGIN {
     $Params::Callbacks::AUTHORITY = 'cpan:CPANIC';
-    $Params::Callbacks::VERSION   = '1.001_000';
+    $Params::Callbacks::VERSION   = '1.11';
     $Params::Callbacks::VERSION   = eval $Params::Callbacks::VERSION;
 }
 
@@ -92,6 +92,48 @@ Params::Callbacks - Enable functions to accept blocking callbacks
 
 =head1 SYNOPSIS
 
+    # Using the object oriented calling style...
+
+    use Params::Callbacks;
+
+    sub counted {
+        my ($callbacks, @args) = Params::Callbacks->extract(@_);
+        $callbacks->filter(@args);
+    }
+
+    my $size = counted 1, 2, 3, sub {
+        print "> $_\n" for @_;
+        return @_;
+    };
+
+    print "$size items\n";
+
+    # > 1
+    # > 2
+    # > 3
+    # 3 items
+    
+    # Or, just mix-in the "callbacks" function...
+
+    use Params::Callbacks qw/callbacks/;
+
+    sub counted {
+        my ($callbacks, @args) = &callbacks;
+        $callbacks->filter(@args);
+    }
+
+    my $size = counted 'A', 'B', 'C', sub {
+        print "> $_\n" for @_;
+        return @_;
+    };
+
+    print "$size items\n";
+
+    # > A
+    # > B
+    # > C
+    # 3 items
+    
 =head1 DESCRIPTION
 
 This package provides the developer with an easy and consistent method for 
