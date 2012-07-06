@@ -1,6 +1,1 @@
 Revision history for Perl extension Params::Callbacks.
-
-1.13  Wed Jul  5 22:42:34 2012
-	- created by h2xs 1.23 with options
-		-X -b 5.8.4 -v1.11 -n Params::Callbacks
-	- Yield return value wrong if no callbacks exist - fixed

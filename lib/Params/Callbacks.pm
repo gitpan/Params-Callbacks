@@ -9,7 +9,7 @@ package Params::Callbacks;
 
 BEGIN {
     $Params::Callbacks::AUTHORITY = 'cpan:CPANIC';
-    $Params::Callbacks::VERSION   = '1.13';
+    $Params::Callbacks::VERSION   = '1.14';
     $Params::Callbacks::VERSION   = eval $Params::Callbacks::VERSION;
 }
 
@@ -38,8 +38,7 @@ sub extract {
 # Yield result and control to callback queue.
 
 sub yield {
-    my @callbacks = @{ +shift };
-    if ( @callbacks ) {
+    if ( my @callbacks = @{ +shift } ) {
         return map { @_ = $_->(@_) } @callbacks;
     }
     else {
@@ -245,18 +244,15 @@ Everything in @EXPORT_OK.
 
 =back 
 
-=head1 BUGS AND FEATURE REQUESTS
+=head1 BUGS REPORTS
 
-Too many features; not enough bugs? Just drop me a line and I'll see what
-I can do to help.  
+Please report any bugs to L<http://rt.cpan.org/>
 
 =head1 AUTHOR
 
 Iain Campbell <cpanic@cpan.org>
 
 =head1 COPYRIGHT AND LICENCE
-
-Params::Callbacks, Version 1.01
 
 Copyright (C) 2012 by Iain Campbell
 
