@@ -9,7 +9,7 @@ package Params::Callbacks;
 
 BEGIN {
     $Params::Callbacks::AUTHORITY = 'cpan:CPANIC';
-    $Params::Callbacks::VERSION   = '1.14';
+    $Params::Callbacks::VERSION   = '1.15';
     $Params::Callbacks::VERSION   = eval $Params::Callbacks::VERSION;
 }
 
@@ -102,7 +102,7 @@ Params::Callbacks - Enable functions to accept blocking callbacks
 
     sub counted {
         my ($callbacks, @args) = Params::Callbacks->extract(@_);
-        $callbacks->filter(@args);
+        $callbacks->yield(@args);
     }
 
     my $size = counted 1, 2, 3, sub {
@@ -123,7 +123,7 @@ Params::Callbacks - Enable functions to accept blocking callbacks
 
     sub counted {
         my ($callbacks, @args) = &callbacks;
-        $callbacks->filter(@args);
+        $callbacks->yield(@args);
     }
 
     my $size = counted 'A', 'B', 'C', sub {
@@ -244,7 +244,7 @@ Everything in @EXPORT_OK.
 
 =back 
 
-=head1 BUGS REPORTS
+=head1 BUG REPORTS
 
 Please report any bugs to L<http://rt.cpan.org/>
 
