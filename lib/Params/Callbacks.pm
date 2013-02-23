@@ -7,79 +7,157 @@ package Params::Callbacks;
 # wish, but if you redistribute a modified version, please attach a note 
 # listing the modifications you have made.
 
-BEGIN {
-    $Params::Callbacks::AUTHORITY = 'cpan:CPANIC';
-    $Params::Callbacks::VERSION   = '1.15';
-    $Params::Callbacks::VERSION   = eval $Params::Callbacks::VERSION;
-}
-
 use 5.008_004;
 use strict;
 use warnings;
 
 require Exporter;
 
+BEGIN {
+    $Params::Callbacks::AUTHORITY = 'cpan:CPANIC';
+    $Params::Callbacks::VERSION   = '2.00';
+    $Params::Callbacks::VERSION   = eval $Params::Callbacks::VERSION;
+}
+
 our @ISA = qw/Exporter/;
 
-our @EXPORT_OK = qw/callbacks list item extract_callbacks/;
-
 our %EXPORT_TAGS = (
-    all => [ @EXPORT_OK ]
+    'all' => [ qw/callbacks block bleach yield/ ]
 );
 
-# Constructor to create callback queue object.
+our @EXPORT_OK = @{$EXPORT_TAGS{'all'}};
 
-sub extract {
+##
+# Create a list of callbacks from the trailing coderefs in the parameter 
+# list, returning a list comprising the Params::Callbacks object and any
+# parameters that didn't qualify as callbacks.
+#
+# Example
+#
+#   sub your_function
+#   {
+#       my ($callbacks, @params) = Params::Callbacks->extract(@_);
+#           .
+#           .
+#           .
+#   }
+#
+sub extract 
+{
     my @callbacks;
-    unshift @callbacks, pop while ref $_[-1] eq 'CODE';
-    bless( \@callbacks, shift ), @_;
+
+    unshift @callbacks, pop
+        while ref $_[-1] eq 'CODE'
+    ;
+
+    my $callback_queue = bless \@callbacks, shift;
+    
+    return $callback_queue, @_;
 }
 
-# Yield result and control to callback queue.
-
-sub yield {
-    if ( my @callbacks = @{ +shift } ) {
-        return map { @_ = $_->(@_) } @callbacks;
-    }
-    else {
-        return @_;
-    }
-}
-
-# Deprecated "filter" shortly after initial release.
-# Use "yield" instead.
-
-*filter = \&yield;
-
-# Non-OO function to create creat callback queue object.
-# Exported on request.
-
-sub callbacks { 
-    __PACKAGE__->extract(@_); 
-}
-
-# Deprecated "extract_callbacks" shortly after initial release.
-# Use "callbacks" instead.
-
-*extract_callbacks = \&callbacks;
-
-# Syntactic sugar: like "sub { ... }" without the need for a comma to separate
-# more than one. 
+##
+# More terse, but also more readable, alternative to the 
+# Params::Callback->extract(@_) calling idiom:
 #
-# Exported on request.
+# Example
+#
+#   sub your_function
+#   {
+#       my ($callbacks, @params) = &callbacks;
+#           .
+#           .
+#           .
+#   }
+#
+sub callbacks 
+{ 
+    @_ = (__PACKAGE__, @_);
+    
+    goto &extract;
+} 
 
-sub list (&;@) {
-    return @_;
+##
+# Yield the result to the caller via any queued callbacks. Works just like
+# the "return" statement, except that your result is being filtered:
+#
+# Example
+#
+#   sub your_function
+#   {
+#       my ($callbacks, @params) = &callbacks;
+#           .
+#           .
+#           .
+#       $callbacks->yield(@params);
+#   }
+#
+sub yield 
+{
+    my ($callback_queue, @list) = @_;
+
+    return @list && defined($callback_queue) && @{$callback_queue}
+        ? map { @list = $_->(@list) } @{$callback_queue}
+        : @list
+    ;
 }
 
-# Syntactic sugar: like "list { ... }" but process result set one item at a
-# time.
+##
+# Appends a blocking callback to the call just as "sub {...}" would, without
+# the need for a comma (,) separating each callback. 
 #
-# Exported on request.
+# Example
+#
+#   your_function 1, 2, 3, block {
+#       @_;
+#   } block {
+#       @_;
+#   } block {
+#       @_;
+#   };
+#
+# Or the scruffier alternative
+#
+#   your_function 1, 2, 3, sub {
+#       @_;
+#   }, sub {
+#       @_;
+#   }, sub {
+#       @_;
+#   };
+#
+sub block (&;@) 
+{ 
+    return @_; 
+}
 
-sub item (&;@) {
+##
+# Like "block" the "bleach" subroutine appends a blocking callback to the 
+# call just as "sub {...}" would, without the need for a comma (,) separating 
+# each callback.
+#
+# Unlike "block", which processes the result list in its entirety, "bleach" 
+# processes each item in the result list seperately. You can mix "bleach" and
+# "block" stages freely, using them to split and gather results.
+#
+# Example
+#
+#   your_function 1, 2, 3, bleach {
+#       @_;
+#   } bleach {
+#       @_;
+#   } block {
+#       @_;
+#   };
+#
+sub bleach (&;@) 
+{
     my $code = shift;
-    sub { map { $code->( local $_ = $_ ) } @_ }, @_;
+
+    die 'Expected code reference or anonymous subroutine'
+        unless ref $code && ref $code eq 'CODE'
+    ;
+
+    return sub { map { $code->($_) } @_ }, @_;
 }
 
 1;
@@ -96,65 +174,57 @@ Params::Callbacks - Enable functions to accept blocking callbacks
 
 =head1 SYNOPSIS
 
-    # Using the object oriented calling style...
+    # A simple filter, which does nothing on its own:
 
-    use Params::Callbacks;
-
-    sub counted {
-        my ($callbacks, @args) = Params::Callbacks->extract(@_);
-        $callbacks->yield(@args);
+    sub filter
+    {
+        my ($callbacks, @params) = &callbacks;
+        $callbacks->yield(@params);
     }
 
-    my $size = counted 1, 2, 3, sub {
-        print "> $_\n" for @_;
+    # Invoke the filter, allowing only odd numbered items to 
+    # pass through then render the result before returning
+    # the filtered list:
+
+    filter 1, 2, 3, 4, 5, bleach {
+        $_[0] % 2 != 0 ? @_ : ();
+    } block {
+        print join(', ', @_), "\n";
         return @_;
     };
-
-    print "$size items\n";
-
-    # > 1
-    # > 2
-    # > 3
-    # 3 items
-    
-    # Or, just mix-in the "callbacks" function...
-
-    use Params::Callbacks qw/callbacks/;
-
-    sub counted {
-        my ($callbacks, @args) = &callbacks;
-        $callbacks->yield(@args);
-    }
-
-    my $size = counted 'A', 'B', 'C', sub {
-        print "> $_\n" for @_;
-        return @_;
-    };
-
-    print "$size items\n";
-
-    # > A
-    # > B
-    # > C
-    # 3 items
     
 =head1 DESCRIPTION
 
-This package provides the developer with an easy and consistent method for 
-converting a function that returns a result, into a function that will allow
-its result to pass through one or more blocking callbacks, before it is 
-delivered to the caller. 
+This package provides a simple method for converting a standard function 
+into a function that can filter its result through one or more callbacks
+provided by the caller.
 
-It is up to the function's author to decide how and where in the function's
-flow those callbacks should be invoked. This is could be important during the
-creation of sets of results: one could apply the callbacks to a finished set, 
-or apply them to each element of the result set as it is added. 
+=head1 CONFIGURING A FUNCTION TO ACCEPT CALLBACKS
 
-=head2 TRAINING FUNCTIONS TO HANDLE CALLBACKS
+Your function must do two things in order to be able to filter its results
+through a list of callbacks. It must first separate callbacks from the data
+passed to the function when it was invoked. After completion, the function's
+result must be passed to the callbacks for further processing before being
+delivered to the caller.
+
+These two tasks are completed using the C<callbacks> function and the 
+C<yield> method, like so:
+
+    sub minimalist_function
+    {
+        # Create a callback queue and list of function parameters
+        # from @_:
+        #
+        my ($callbacks, @params) = &callbacks;
+
+        ...
+
+        # Yield a result via the callback queue:
+        #
+        $callbacks->yield(@params);
+    }
 
 =over 5
-
-=item B<( $callbacks, LIST ) = Params::Callbacks-E<gt>extract( LIST );>
 
 =item B<( $callbacks, LIST ) = callbacks LIST;>
 
@@ -171,78 +241,32 @@ A callback queue may be empty and that's fine.
 
 A special form of call to C<callbacks>, using the current C<@_>.
 
-=item B<RESULT = $callbacks-E<gt>yield( RESULT );>
+=item B<RESULT = $callbacks-E<gt>yield(RESULT);>
 
-Yields a result up to the callback queue, returning whatever comes out at
+Yields a result via the callback queue, returning whatever comes out at
 the other end.
 
 A result will pass through an empty callback queue unmodified.
 
-=item B<list BLOCK [CALLBACK-LIST]>
+=item B<block BLOCK [CALLBACK-LIST]>
 
-=item B<sub STATEMENT-BLOCK[, CALLBACK-LIST]>
+Introduces a blocking callback that processes the entire result set as a 
+list.
 
-On their own, callbacks receive their input result as a list; C<@_>, to
-be precise, since they're really only functions. 
+If the terminating expression is an empty list, an empty list is passed
+along the callback queue to the caller unless something more meaningful
+is added.
 
-When invoking a function that accepts callbacks, you might string a sequence
-of code-references, or anonymous C<sub> blocks together, being careful to
-separate each witha comma (,), e.g:
+=item B<bleach STATEMENT-BLOCK [CALLBACK-LIST]>
 
-    function ARGUMENTS, sub {
-        ...
-    }, sub {
-        ...
-    }, sub {
-        ...
-    };
+Introduces a blocking callback that processes the entire result set an
+item at a time.
 
-Alternatively, use the C<list> function to do exactly the same but dispense 
-line-noise altogether:
-
-    function ARGUMENTS, list {
-        ...
-    } list {
-        ...
-    } list {
-        ...
-    }
-
-Yes, much easier on the eye!
-    
-=item B<item STATEMENT-BLOCK [CALLBACK-LIST]>
-
-Use in place of C<list> when you want the input result one item at a time, 
-i.e. even though the result is a list, the callback is called once for each
-item in the list and all items are gathered before being passed on.
-
-Both the C<item> and C<list> callbacks may be mixed freely.
+If the terminating express is an empty list, the item is removed from
+the result. Conversely, lists may be returned resulting in additional
+elements appearing in the result.
 
 =back
-
-=head1 EXPORTS
-
-=head2 @EXPORT
-
-None.
-
-=head2 @EXPORT_OK
-
-=over 5 
-
-=item callbacks, list, item, (DEPRECATED: extract_callbacks)
-
-=back 
-
-=head2 %EXPORT_TAGS
-
-=over 5
-
-=item C<:all>
-
-Everything in @EXPORT_OK.
-
-=back 
 
 =head1 BUG REPORTS
 
